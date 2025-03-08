@@ -28,49 +28,35 @@
         if (typeof requirejs !== 'undefined') {
           clearInterval(checkRequire);
 
-
-
           // Access the specific module
           requirejs(['bifocal/themes/read/default/src/parts/audio-proxy-element'], function (elem) {
             try {
-              //console.log(BIF.objects.compass.chapterManager.nextPlace(0));
-              //console.log(BIF.objects.compass.at(0));
-              //console.log(BIF.objects.compass.at(1));
-              //console.log(BIF.objects.compass.at(2));
 
               // Hijack the seek() function
               const originalSeek = elem.prototype.seek;
 
               elem.prototype.seek = function (t, e) {
                 console.log(t);
-                console.log(e);
                 let arr = JSON.parse(sessionStorage.getItem("SessionURLs"));
                 arr.push(t);
                 sessionStorage.setItem("SessionURLs", JSON.stringify(arr));
 
-                //console.log(BIF.objects.compass.chapterManager.nextPlace(0.5884623671358805));
-                //console.log(BIF.objects.compass);
-                //console.log(this);
-
-                //return originalSeek(t, e);
                 return 0;
               };
 
               console.log("Successfully hijacked 'seek()' ");
-            } catch (err) {
-              console.error("Failed to hijack 'seek()':", err);
-            }
-          });
-          requirejs(['bifocal/themes/listen/default/src/parts/spool'], function (elem) {
-            try {
-                console.log(elem);
-                console.log(this);
-                i = BIF.objects.compass.at(1);
 
-                console.log(i);
-                BIF.objects.spool.seekWithinBook(i.bookMilliseconds,0);
-                i = BIF.objects.compass.at(2);
-                BIF.objects.spool.seekWithinBook(i.bookMilliseconds,0);
+              i = 0;
+              file = BIF.objects.compass.at(i);
+              while(!isNaN(file.bookMilliseconds)) {
+                //console.log(file);
+                BIF.objects.spool.seekWithinBook(file.bookMilliseconds + 1,0);
+                i += 1;
+                file = BIF.objects.compass.at(i);
+              }
+
+
+              elem.prototype.seek = originalSeek;
             } catch (err) {
               console.error("Failed to 'seek()':", err);
             }
@@ -91,7 +77,35 @@
 
       var jDiv = $(divClass);
       jDiv.bind( "click", function() {
-          console.log(JSON.parse(sessionStorage.getItem("SessionURLs")));
+          function uniq(a) {
+              return a.sort().filter(function(item, pos, ary) {
+                  return !pos || item != ary[pos - 1];
+              });
+          }
+
+
+          const downloadMedia = async (url) => {
+              var fileName = url.split("?")[0];
+              url = "https://" + window.location.host + "/" + url;
+              console.log("Downloading " + url);
+              const blob = await fetch(url).then((res) => res.blob());
+              const reader = new FileReader();
+              reader.readAsDataURL(blob);
+              reader.onloadend = function() {
+                  const elem = document.createElement('a');
+                  elem.download = fileName;
+                  if (typeof reader.result === 'string') {
+                      elem.href = reader.result;
+                  }
+                  elem.click();
+              }
+          }
+
+          var URLarr = uniq(JSON.parse(sessionStorage.getItem("SessionURLs")));
+
+          console.log(URLarr);
+          URLarr.map(downloadMedia);
+
       });
       jDiv.insertAfter(jNode);
     }
